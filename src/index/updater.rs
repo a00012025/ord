@@ -293,6 +293,8 @@ impl Updater {
     block: BlockData,
     value_cache: &mut HashMap<OutPoint, u64>,
   ) -> Result<()> {
+    let guard = pprof::ProfilerGuardBuilder::default().frequency(1000).blocklist(&["libc", "libgcc", "pthread", "vdso"]).build().unwrap();
+
     let mut height_to_block_hash = wtx.open_table(HEIGHT_TO_BLOCK_HASH)?;
 
     let start = Instant::now();
@@ -442,6 +444,15 @@ impl Updater {
       "Wrote {sat_ranges_written} sat ranges from {outputs_in_block} outputs in {} ms",
       (Instant::now() - start).as_millis(),
     );
+
+    // check if file exists
+    let exists = Path::new("flamegraph.svg").exists();
+    if !exists {
+        if let Ok(report) = guard.report().build() {
+          let file = File::create("flamegraph.svg").unwrap();
+          report.flamegraph(file).unwrap();
+      };
+    }
 
     Ok(())
   }
